@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Breaking Bad",
+    "image": "https://static.tvmaze.com/uploads/images/medium_portrait/501/1253519.jpg",
+    "summary": "A chemistry teacher turns to making and selling methamphetamine.",
+    "genres": ["Drama", "Crime", "Thriller"],
+    "rating": 9.5
+  },
+  {
+    "id": 2,
+    "name": "Stranger Things",
+    "image": "https://static.tvmaze.com/uploads/images/medium_portrait/595/1489169.jpg",
+    "summary": "A group of friends encounters supernatural mysteries in their small town.",
+    "genres": ["Drama", "Fantasy", "Horror"],
+    "rating": 8.7
+  },
+  {
+    "id": 3,
+    "name": "The Office",
+    "image": "https://static.tvmaze.com/uploads/images/medium_portrait/481/1204342.jpg",
+    "summary": "The everyday lives of office employees at a paper company.",
+    "genres": ["Comedy"],
+    "rating": 8.5
+  }
+]

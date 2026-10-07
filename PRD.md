@@ -4,27 +4,29 @@ A clean and simple master-detail web app that lets TV show fans effortlessly bro
 2. Who it is for
 TV show enthusiasts and casual viewers who want a quick, distraction-free way to discover shows and check quick summaries, ratings, and genres in one organized interface.
 
-3. Screens (landing, list, details)
-Landing View: A welcoming hero area with genre shortcuts and navigation to explore the catalog or saved favorites.
+3. Screens (landing, catalog, show details, favorites)
+Landing View: A welcoming hero area with compact, visual genre cards showing each genre's show count and navigation to explore the catalog or saved favorites.
 
-Main List View: A searchable, filterable, sortable poster grid displaying the TV show catalog beneath its controls.
+Catalog View: A searchable, filterable, sortable poster grid displaying the full TV show catalog beneath its controls.
 
-Details View: A dialog displaying the selected show's poster, summary, genres, rating, status, premiere date, and network when available.
+Show Details View: A dedicated in-app page displaying the selected show's poster, summary, genres, rating, status, premiere date, and network when available. Navigation stays within the same HTML document.
 
-Favorites View: A collection of shows saved by the user and persisted in the browser.
+Favorites View: A dedicated in-app page showing shows saved by the user and persisted in the browser.
 
 4. Must-have features
 Fetch and display a list of TV shows from the TV Maze API.
 
 Display each show's name and poster image in the main list.
 
-Search shows by title, filter by genre or minimum rating, and sort by title or rating.
+Search shows by title or genre, filter by genre or minimum rating, and sort by title or rating.
 
 Clear active filters without reloading the show list.
 
 Browse all shows in a poster grid and navigate directly to shows by genre.
 
 Add and remove favorites from the catalog or show details; preserve favorites between visits.
+
+Navigate between the catalog, favorites, and show details without a full page reload; support browser back and forward.
 
 Allow users to click on any show in the list to select it.
 
@@ -44,6 +46,8 @@ When I view the details panel, I see the show's summary, genres, and rating clea
 When show data or poster images are unavailable, the app presents a useful fallback instead of breaking.
 
 When I save a show as a favorite, it appears in a dedicated favorites view and remains saved after reloading.
+
+When I select a show or open favorites, the requested view replaces the current app view without reloading the HTML document.
 
 6. Not now (ideas for later)
 Dark mode theme toggle.

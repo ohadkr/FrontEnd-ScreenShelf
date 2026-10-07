@@ -28,3 +28,10 @@ I checked: The automated test suite passed (8 tests), the production build succe
 Prompt: Make the page more beautiful, show all shows in a list under filtering and sorting, add a landing page with genres, improve the features, and add favorites.
 Agent did: Redesigned the page with a landing hero, genre shortcuts, a full-catalog poster grid below search/filter/sort controls, responsive layouts, top-rated and title sorting, and Browse/Favorites navigation. Added persistent favorites with card and detail-dialog controls, and moved selected-show details into a dismissible dialog. Updated PRD.md.
 I checked: Verified the browse and favorite behaviors with automated tests and checked that lint and the production build pass.
+
+## In-app show and favorites pages
+Prompt: When selecting a show, show its details on a new page within the same HTML document; redesign the genre list; make Favorites behave like the details page.
+Agent did: Replaced the details dialog with a full in-app show detail page using hash navigation, added a dedicated Favorites page using the same client-side navigation, and redesigned genres as colored cards with show counts. Show-to-genre links, browser history navigation, and return navigation from details are supported.
+Follow-up: Make the genre cards smaller and verify that searching by genre works.
+Agent did: Compactly arranged genre cards with smaller symbols, labels, and counts; extended search matching to show names and genre names; added test coverage for both genre text search and genre-card filtering.
+I checked: Navigation, genre search and filtering, and other interactions passed 11 tests. Lint and production build passed; browser validation confirmed live show navigation between Browse, details, and Favorites without a document reload.

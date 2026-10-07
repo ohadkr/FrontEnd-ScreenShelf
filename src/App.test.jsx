@@ -56,12 +56,13 @@ describe('show browser', () => {
   beforeEach(() => {
     fetchShows.mockReset()
     localStorage.clear()
+    window.history.replaceState(null, '', '#/browse')
   })
 
   it('searches and filters shows, then clears the filters', async () => {
     const user = await renderLoadedApp()
     const search = screen.getByRole('searchbox', { name: 'Search shows' })
-    const genre = screen.getByRole('button', { name: 'Drama' })
+    const genre = screen.getByRole('button', { name: 'Drama, 2 shows' })
 
     await user.type(search, 'zeta')
     expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(1)
@@ -72,8 +73,22 @@ describe('show browser', () => {
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(search.value).toBe('')
-    expect(screen.getByRole('button', { name: 'All genres' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Drama, 2 shows' }).getAttribute('aria-pressed')).toBe('false')
     expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(3)
+  })
+
+  it('searches genre names and filters using the compact genre cards', async () => {
+    const user = await renderLoadedApp()
+    const search = screen.getByRole('searchbox', { name: 'Search shows' })
+
+    await user.type(search, 'comedy')
+    expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Show details for Alpha Show' })).not.toBeNull()
+
+    await user.clear(search)
+    await user.click(screen.getByRole('button', { name: 'Comedy, 1 show' }))
+    expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Show details for Alpha Show' })).not.toBeNull()
   })
 
   it('filters out unrated shows at a minimum rating and sorts highest-rated first', async () => {
@@ -91,10 +106,11 @@ describe('show browser', () => {
     const user = await renderLoadedApp()
     await user.click(screen.getByRole('button', { name: 'Show details for Alpha Show' }))
 
-    const details = screen.getByRole('dialog', { name: 'Alpha Show' })
+    const details = screen.getByRole('region', { name: 'Alpha Show' })
     expect(within(details).getByText('Alpha summary')).not.toBeNull()
+    expect(within(details).getByRole('heading', { name: 'Alpha Show' })).not.toBeNull()
     expect(within(details).getByText('Comedy')).not.toBeNull()
-    expect(details.querySelector('.dialog-rating')?.textContent).toContain('8')
+    expect(details.querySelector('.show-page-rating')?.textContent).toContain('8')
     expect(within(details).getByText('Ended')).not.toBeNull()
     expect(within(details).getByText('2015-04-10')).not.toBeNull()
     expect(within(details).getAllByText('Unknown')).toHaveLength(1)
@@ -104,8 +120,8 @@ describe('show browser', () => {
     await renderLoadedApp()
 
     expect(screen.getByRole('img', { name: 'Alpha Show poster unavailable' })).not.toBeNull()
-    fireEvent.error(screen.getAllByRole('img', { name: 'Zeta Show poster' })[0])
-    expect(screen.getAllByRole('img', { name: 'Zeta Show poster unavailable' })).not.toHaveLength(0)
+    fireEvent.error(screen.getByRole('img', { name: 'Zeta Show poster' }))
+    expect(screen.getByRole('img', { name: 'Zeta Show poster unavailable' })).not.toBeNull()
   })
 
   it('shows an API error and retries successfully', async () => {
@@ -136,5 +152,23 @@ describe('show browser', () => {
     await user.click(screen.getByRole('button', { name: 'Remove Alpha Show from favorites' }))
     expect(localStorage.getItem('tv-show-favorites')).toBe('[]')
     expect(screen.getByText('Your watchlist is waiting')).not.toBeNull()
+  })
+
+  it('navigates between browse, show details, and favorites without reloading the document', async () => {
+    const user = await renderLoadedApp()
+    const documentElement = document.documentElement
+
+    await user.click(screen.getByRole('button', { name: 'Show details for Zeta Show' }))
+    expect(window.location.hash).toBe('#/shows/1')
+    expect(screen.getByRole('heading', { name: 'Zeta Show' })).not.toBeNull()
+    expect(document.documentElement).toBe(documentElement)
+
+    await user.click(screen.getByRole('button', { name: 'Back to all shows' }))
+    expect(window.location.hash).toBe('#/browse')
+    expect(screen.getByRole('heading', { name: 'Explore by genre' })).not.toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Favorites 0' }))
+    expect(window.location.hash).toBe('#/favorites')
+    expect(screen.getByRole('heading', { name: 'Your favorites' })).not.toBeNull()
   })
 })

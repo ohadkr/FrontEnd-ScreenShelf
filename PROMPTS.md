@@ -23,3 +23,8 @@ I checked: Verified title search, genre filtering, and the no-results state agai
 Prompt: Implement the suggested app improvements: sorting, a rating filter and clear-filters action, poster fallbacks, a retry button, additional details, and tests.
 Agent did: Added title and rating sort options, minimum-rating filtering, and a clear-filters action. Added poster fallbacks for missing or failed images, a retry action for failed API requests, and status, premiere date, and network details. Added Vitest and Testing Library coverage for search, filters, sorting, selection details, poster failures, retries, and API response errors. Updated PRD.md.
 I checked: The automated test suite passed (8 tests), the production build succeeded, and editor diagnostics reported no errors.
+
+## Landing page, genre browsing, and favorites
+Prompt: Make the page more beautiful, show all shows in a list under filtering and sorting, add a landing page with genres, improve the features, and add favorites.
+Agent did: Redesigned the page with a landing hero, genre shortcuts, a full-catalog poster grid below search/filter/sort controls, responsive layouts, top-rated and title sorting, and Browse/Favorites navigation. Added persistent favorites with card and detail-dialog controls, and moved selected-show details into a dismissible dialog. Updated PRD.md.
+I checked: Verified the browse and favorite behaviors with automated tests and checked that lint and the production build pass.

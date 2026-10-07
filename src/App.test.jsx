@@ -55,30 +55,31 @@ async function renderLoadedApp() {
 describe('show browser', () => {
   beforeEach(() => {
     fetchShows.mockReset()
+    localStorage.clear()
   })
 
   it('searches and filters shows, then clears the filters', async () => {
     const user = await renderLoadedApp()
     const search = screen.getByRole('searchbox', { name: 'Search shows' })
-    const genre = screen.getByRole('combobox', { name: 'Genre' })
+    const genre = screen.getByRole('button', { name: 'Drama' })
 
     await user.type(search, 'zeta')
     expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(1)
 
     await user.clear(search)
-    await user.selectOptions(genre, 'Drama')
+    await user.click(genre)
     expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(2)
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(search.value).toBe('')
-    expect(genre.value).toBe('')
+    expect(screen.getByRole('button', { name: 'All genres' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(3)
   })
 
   it('filters out unrated shows at a minimum rating and sorts highest-rated first', async () => {
     const user = await renderLoadedApp()
     await user.selectOptions(screen.getByRole('combobox', { name: 'Minimum rating' }), '8')
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'rating')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'popular')
 
     const cards = screen.getAllByRole('button', { name: /Show details for/ })
     expect(cards).toHaveLength(2)
@@ -90,10 +91,10 @@ describe('show browser', () => {
     const user = await renderLoadedApp()
     await user.click(screen.getByRole('button', { name: 'Show details for Alpha Show' }))
 
-    const details = screen.getByRole('complementary', { name: 'Alpha Show' })
+    const details = screen.getByRole('dialog', { name: 'Alpha Show' })
     expect(within(details).getByText('Alpha summary')).not.toBeNull()
     expect(within(details).getByText('Comedy')).not.toBeNull()
-    expect(details.querySelector('.show-rating')?.textContent).toContain('8')
+    expect(details.querySelector('.dialog-rating')?.textContent).toContain('8')
     expect(within(details).getByText('Ended')).not.toBeNull()
     expect(within(details).getByText('2015-04-10')).not.toBeNull()
     expect(within(details).getAllByText('Unknown')).toHaveLength(1)
@@ -120,5 +121,20 @@ describe('show browser', () => {
       expect(screen.getByRole('button', { name: 'Show details for Alpha Show' })).not.toBeNull()
     })
     expect(fetchShows).toHaveBeenCalledTimes(2)
+  })
+
+  it('adds and removes favorites and persists them between renders', async () => {
+    const user = await renderLoadedApp()
+    const addFavorite = screen.getByRole('button', { name: 'Add Alpha Show to favorites' })
+    await user.click(addFavorite)
+
+    expect(localStorage.getItem('tv-show-favorites')).toBe('[2]')
+    await user.click(screen.getByRole('button', { name: /Favorites/ }))
+    expect(screen.getByRole('button', { name: 'Show details for Alpha Show' })).not.toBeNull()
+    expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Remove Alpha Show from favorites' }))
+    expect(localStorage.getItem('tv-show-favorites')).toBe('[]')
+    expect(screen.getByText('Your watchlist is waiting')).not.toBeNull()
   })
 })

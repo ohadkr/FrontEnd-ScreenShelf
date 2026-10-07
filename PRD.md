@@ -14,6 +14,8 @@ Fetch and display a list of TV shows from the TV Maze API.
 
 Display each show's name and poster image in the main list.
 
+Search shows by title and filter the list by genre.
+
 Allow users to click on any show in the list to select it.
 
 Display the selected show's summary, genres, and rating in the details panel.
@@ -26,10 +28,6 @@ When I click on a TV show in the list, I see its detailed information load in th
 When I view the details panel, I see the show's summary, genres, and rating clearly presented.
 
 6. Not now (ideas for later)
-Search bar to find shows by title.
-
-Filtering shows by genre or rating.
-
 Adding shows to a personal favorites list.
 
 Dark mode theme toggle.

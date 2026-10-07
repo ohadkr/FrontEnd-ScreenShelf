@@ -22,8 +22,20 @@ function mapShow(show) {
 function App() {
   const [shows, setShows] = useState([])
   const [selectedShow, setSelectedShow] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedGenre, setSelectedGenre] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const genres = [...new Set(shows.flatMap((show) => show.genres))].sort((a, b) =>
+    a.localeCompare(b),
+  )
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase()
+  const filteredShows = shows.filter((show) => {
+    const matchesSearch = show.name.toLocaleLowerCase().includes(normalizedQuery)
+    const matchesGenre = !selectedGenre || show.genres.includes(selectedGenre)
+    return matchesSearch && matchesGenre
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -63,25 +75,57 @@ function App() {
           {isLoading ? <p role="status">Loading shows…</p> : null}
           {!isLoading && error ? <p className="load-error" role="alert">{error}</p> : null}
           {!isLoading && !error ? (
-            <ul className="shows-list">
-              {shows.map((show) => (
-                <li key={show.id}>
-                  <button
-                    className="show-card"
-                    type="button"
-                    aria-pressed={selectedShow?.id === show.id}
-                    onClick={() => setSelectedShow(show)}
+            <>
+              <div className="shows-filters">
+                <label className="filter-field">
+                  <span>Search shows</span>
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search by title"
+                  />
+                </label>
+                <label className="filter-field">
+                  <span>Genre</span>
+                  <select
+                    value={selectedGenre}
+                    onChange={(event) => setSelectedGenre(event.target.value)}
                   >
-                    {show.image ? (
-                      <img className="show-poster" src={show.image} alt="" />
-                    ) : (
-                      <span className="show-poster show-poster-placeholder" aria-hidden="true">No image</span>
-                    )}
-                    <span className="show-name">{show.name}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                    <option value="">All genres</option>
+                    {genres.map((genre) => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <p className="results-count" aria-live="polite">
+                {filteredShows.length} {filteredShows.length === 1 ? 'show' : 'shows'}
+              </p>
+              {filteredShows.length ? (
+                <ul className="shows-list">
+                  {filteredShows.map((show) => (
+                    <li key={show.id}>
+                      <button
+                        className="show-card"
+                        type="button"
+                        aria-pressed={selectedShow?.id === show.id}
+                        onClick={() => setSelectedShow(show)}
+                      >
+                        {show.image ? (
+                          <img className="show-poster" src={show.image} alt="" />
+                        ) : (
+                          <span className="show-poster show-poster-placeholder" aria-hidden="true">No image</span>
+                        )}
+                        <span className="show-name">{show.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-results">No shows match your search and filter.</p>
+              )}
+            </>
           ) : null}
         </section>
 

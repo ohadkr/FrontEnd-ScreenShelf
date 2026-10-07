@@ -29,9 +29,30 @@
   color: #646477;
 }
 
+.shows-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.shows-browser,
+.show-details {
+  min-width: 0;
+  border: 1px solid #e6e6ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 20px;
+}
+
+.section-heading {
+  margin: 0 0 16px;
+  color: #171725;
+  font-size: 1.25rem;
+}
+
 .shows-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 16px;
   margin: 0;
   padding: 0;
@@ -40,6 +61,7 @@
 
 .show-card {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 16px;
   overflow: hidden;
@@ -47,6 +69,22 @@
   border-radius: 8px;
   background: #fff;
   padding: 10px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.show-card:hover,
+.show-card[aria-pressed="true"] {
+  border-color: #6b5ce7;
+  background: #f7f6ff;
+}
+
+.show-card:focus-visible {
+  outline: 3px solid rgb(107 92 231 / 35%);
+  outline-offset: 2px;
 }
 
 .show-poster {
@@ -60,11 +98,78 @@
   background: #ececf2;
 }
 
-.show-card h2 {
-  margin: 0;
+.show-name {
   color: #171725;
   font-size: 1rem;
+  font-weight: 600;
   line-height: 1.4;
+}
+
+.show-details {
+  min-height: 300px;
+}
+
+.show-details h2 {
+  margin: 0 0 16px;
+  color: #171725;
+  font-size: 1.5rem;
+}
+
+.show-summary,
+.details-empty p {
+  color: #646477;
+  line-height: 1.6;
+}
+
+.details-empty {
+  display: grid;
+  min-height: 258px;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.details-empty h2 {
+  margin-bottom: 8px;
+}
+
+.detail-group {
+  margin-top: 24px;
+}
+
+.detail-group h3 {
+  margin: 0 0 10px;
+  color: #171725;
+  font-size: 0.875rem;
+}
+
+.genre-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.genre-tag {
+  border-radius: 999px;
+  background: #f0efff;
+  padding: 4px 10px;
+  color: #5143c0;
+  font-size: 0.875rem;
+}
+
+.show-rating {
+  color: #171725;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.show-rating span {
+  color: #777788;
+  font-size: 0.875rem;
+  font-weight: 400;
 }
 
 @media (max-width: 480px) {
@@ -75,5 +180,19 @@
 
   .shows-list {
     gap: 14px;
+  }
+}
+
+@media (max-width: 760px) {
+  .shows-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .show-details {
+    min-height: 0;
+  }
+
+  .details-empty {
+    min-height: 180px;
   }
 }

@@ -18,3 +18,8 @@ I checked: Verified the live page loaded 240 shows, loaded a poster, and display
 Prompt: Add a search tab and a filter to organize the shows.
 Agent did: Added title search and a genre filter to the Shows panel, along with a result count and no-results message. Updated PRD.md to include these features.
 I checked: Verified title search, genre filtering, and the no-results state against the live show list. The production build succeeded.
+
+## Sorting, rating filter, fallback, retry, details, and tests
+Prompt: Implement the suggested app improvements: sorting, a rating filter and clear-filters action, poster fallbacks, a retry button, additional details, and tests.
+Agent did: Added title and rating sort options, minimum-rating filtering, and a clear-filters action. Added poster fallbacks for missing or failed images, a retry action for failed API requests, and status, premiere date, and network details. Added Vitest and Testing Library coverage for search, filters, sorting, selection details, poster failures, retries, and API response errors. Updated PRD.md.
+I checked: The automated test suite passed (8 tests), the production build succeeded, and editor diagnostics reported no errors.

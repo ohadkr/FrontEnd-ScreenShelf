@@ -14,11 +14,17 @@ Fetch and display a list of TV shows from the TV Maze API.
 
 Display each show's name and poster image in the main list.
 
-Search shows by title and filter the list by genre.
+Search shows by title, filter by genre or minimum rating, and sort by title or rating.
+
+Clear active filters without reloading the show list.
 
 Allow users to click on any show in the list to select it.
 
 Display the selected show's summary, genres, and rating in the details panel.
+
+Display the selected show's status, premiere date, and network when available.
+
+Show a retry option when loading shows fails and a fallback when a poster is unavailable.
 
 5. Acceptance criteria
 When I open the app, I see a list of TV shows displaying their names and poster images.
@@ -26,6 +32,8 @@ When I open the app, I see a list of TV shows displaying their names and poster 
 When I click on a TV show in the list, I see its detailed information load in the details panel.
 
 When I view the details panel, I see the show's summary, genres, and rating clearly presented.
+
+When show data or poster images are unavailable, the app presents a useful fallback instead of breaking.
 
 6. Not now (ideas for later)
 Adding shows to a personal favorites list.

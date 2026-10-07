@@ -98,11 +98,24 @@
   background: #ececf2;
 }
 
+.show-poster-placeholder {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  color: #646477;
+  font-size: 0.75rem;
+}
+
 .show-name {
   color: #171725;
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.4;
+}
+
+.load-error {
+  color: #a12626;
+  line-height: 1.5;
 }
 
 .show-details {

@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { fetchShows } from './services/tvmaze'
+
+const PAGE_SIZE = 30
 
 function toPlainText(html) {
   const element = document.createElement('div')
@@ -28,6 +30,14 @@ function readFavorites() {
     return Array.isArray(favorites) ? favorites : []
   } catch {
     return []
+  }
+}
+
+function readTheme() {
+  try {
+    return localStorage.getItem('tv-show-theme') === 'dark'
+  } catch {
+    return false
   }
 }
 
@@ -61,19 +71,31 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('')
   const [minimumRating, setMinimumRating] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedNetwork, setSelectedNetwork] = useState('')
+  const [selectedYear, setSelectedYear] = useState('')
   const [sortOrder, setSortOrder] = useState('popular')
   const [route, setRoute] = useState(readRoute)
   const [favoriteIds, setFavoriteIds] = useState(readFavorites)
+  const [isDarkTheme, setIsDarkTheme] = useState(readTheme)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [storageError, setStorageError] = useState('')
+  const [shareMessage, setShareMessage] = useState('')
   const [retryCount, setRetryCount] = useState(0)
 
   const isBrowsePage = route.page === 'browse'
   const isFavoritesPage = route.page === 'favorites'
   const isShowPage = route.page === 'show'
   const selectedShow = shows.find((show) => show.id === route.showId) ?? null
+  const previousPageRef = useRef(route.page)
+  const pageHeadingRef = useRef(null)
   const genres = [...new Set(shows.flatMap((show) => show.genres))].sort((a, b) => a.localeCompare(b))
+  const statuses = [...new Set(shows.map((show) => show.status).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  const networks = [...new Set(shows.map((show) => show.network).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  const premiereYears = [...new Set(shows.map((show) => show.premiered?.slice(0, 4)).filter((year) => /^\d{4}$/.test(year ?? '')))]
+    .sort((a, b) => Number(b) - Number(a))
   const genreCounts = genres.map((name) => ({
     name,
     count: shows.filter((show) => show.genres.includes(name)).length,
@@ -86,6 +108,9 @@ function App() {
     )
     && (!selectedGenre || show.genres.includes(selectedGenre))
     && (!minimumRating || (show.rating !== null && show.rating >= Number(minimumRating)))
+    && (!selectedStatus || show.status === selectedStatus)
+    && (!selectedNetwork || show.network === selectedNetwork)
+    && (!selectedYear || show.premiered?.startsWith(`${selectedYear}-`))
     && (!isFavoritesPage || favoriteIds.includes(show.id))
   ))
 
@@ -96,7 +121,9 @@ function App() {
     return first.name.localeCompare(second.name)
   })
 
-  const hasActiveFilters = Boolean(searchQuery || selectedGenre || minimumRating)
+  const visibleShows = filteredShows.slice(0, visibleCount)
+  const hasMoreShows = visibleShows.length < filteredShows.length
+  const hasActiveFilters = Boolean(searchQuery || selectedGenre || minimumRating || selectedStatus || selectedNetwork || selectedYear)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -127,6 +154,15 @@ function App() {
     return () => window.removeEventListener('popstate', handleRouteChange)
   }, [])
 
+  useEffect(() => {
+    const pageName = isShowPage ? selectedShow?.name ?? 'Show details' : isFavoritesPage ? 'Favorites' : 'Explore'
+    document.title = `${pageName} | ScreenShelf`
+    if (previousPageRef.current !== route.page || (isShowPage && selectedShow)) {
+      pageHeadingRef.current?.focus()
+    }
+    previousPageRef.current = route.page
+  }, [isBrowsePage, isFavoritesPage, isShowPage, route.page, selectedShow])
+
   function navigate(path) {
     if (window.location.hash === `#${path}`) {
       setRoute(readRoute())
@@ -144,6 +180,10 @@ function App() {
     setSearchQuery('')
     setSelectedGenre('')
     setMinimumRating('')
+    setSelectedStatus('')
+    setSelectedNetwork('')
+    setSelectedYear('')
+    setVisibleCount(PAGE_SIZE)
     navigate('/favorites')
   }
 
@@ -165,7 +205,30 @@ function App() {
     setSearchQuery('')
     setSelectedGenre('')
     setMinimumRating('')
+    setSelectedStatus('')
+    setSelectedNetwork('')
+    setSelectedYear('')
     setSortOrder('popular')
+    setVisibleCount(PAGE_SIZE)
+  }
+
+  function toggleTheme() {
+    const nextIsDark = !isDarkTheme
+    setIsDarkTheme(nextIsDark)
+    try {
+      localStorage.setItem('tv-show-theme', nextIsDark ? 'dark' : 'light')
+    } catch {
+      setStorageError('Your theme preference could not be saved on this device.')
+    }
+  }
+
+  async function copyShowLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setShareMessage('Show link copied.')
+    } catch {
+      setShareMessage('Copy this page URL from your browser to share this show.')
+    }
   }
 
   function retryShows() {
@@ -175,7 +238,7 @@ function App() {
   }
 
   function selectGenre(genre) {
-    setSelectedGenre(genre)
+    updateFilter(setSelectedGenre, genre)
     navigate('/browse')
     window.setTimeout(() => {
       const catalog = document.getElementById('catalog')
@@ -185,10 +248,10 @@ function App() {
     }, 0)
   }
 
-  function renderShowGrid() {
-    return filteredShows.length ? (
+  function renderShowGrid(showsToRender) {
+    return showsToRender.length ? (
       <ul className="shows-grid">
-        {filteredShows.map((show, index) => {
+        {showsToRender.map((show, index) => {
           const isFavorite = favoriteIds.includes(show.id)
           return (
             <li className="show-tile" key={show.id} style={{ '--tile-index': index % 12 }}>
@@ -229,8 +292,13 @@ function App() {
     )
   }
 
+  function updateFilter(setter, value) {
+    setter(value)
+    setVisibleCount(PAGE_SIZE)
+  }
+
   return (
-    <main className="shows-page">
+    <main className={`shows-page ${isDarkTheme ? 'theme-dark' : ''}`}>
       <header className="site-header">
         <a className="brand" href="#/browse" aria-label="ScreenShelf home" onClick={(event) => {
           event.preventDefault()
@@ -245,6 +313,10 @@ function App() {
           </button>
           <button className={`view-tab ${isFavoritesPage ? 'is-active' : ''}`} type="button" aria-current={isFavoritesPage ? 'page' : undefined} onClick={openFavorites}>
             Favorites <span className="favorite-count">{favoriteIds.length}</span>
+          </button>
+          <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${isDarkTheme ? 'light' : 'dark'} mode`}>
+            <span aria-hidden="true">{isDarkTheme ? '☀' : '☾'}</span>
+            <span className="theme-toggle-label">{isDarkTheme ? 'Light' : 'Dark'}</span>
           </button>
         </nav>
       </header>
@@ -275,7 +347,7 @@ function App() {
                 <p className="eyebrow">PICK A MOOD</p>
                 <h2 id="genre-heading">Explore by genre</h2>
               </div>
-              {selectedGenre ? <button className="text-button" type="button" onClick={() => setSelectedGenre('')}>Clear genre</button> : null}
+              {selectedGenre ? <button className="text-button" type="button" onClick={() => updateFilter(setSelectedGenre, '')}>Clear genre</button> : null}
             </div>
             <div className="genre-grid" aria-label="Browse by genre">
               {genreCounts.map(({ name, count }, index) => (
@@ -306,7 +378,7 @@ function App() {
           <div className="catalog-title-row">
             <div>
               <p className="eyebrow">{isFavoritesPage ? 'YOUR PERSONAL COLLECTION' : 'THE COLLECTION'}</p>
-              <h1 id="catalog-heading">{isFavoritesPage ? 'Your favorites' : 'Find your next favorite'}</h1>
+              <h1 ref={isBrowsePage || isFavoritesPage ? pageHeadingRef : null} id="catalog-heading" tabIndex="-1">{isFavoritesPage ? 'Your favorites' : 'Find your next favorite'}</h1>
             </div>
             <p className="catalog-count">{isFavoritesPage ? favoriteIds.length : shows.length} titles</p>
           </div>
@@ -324,11 +396,11 @@ function App() {
                 <label className="search-field">
                   <span className="visually-hidden">Search shows</span>
                   <span className="search-icon" aria-hidden="true">⌕</span>
-                  <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search titles or genres..." />
+                  <input type="search" value={searchQuery} onChange={(event) => updateFilter(setSearchQuery, event.target.value)} placeholder="Search titles or genres..." />
                 </label>
                 <label className="toolbar-select">
                   <span className="visually-hidden">Minimum rating</span>
-                  <select value={minimumRating} onChange={(event) => setMinimumRating(event.target.value)}>
+                  <select value={minimumRating} onChange={(event) => updateFilter(setMinimumRating, event.target.value)}>
                     <option value="">Any rating</option>
                     <option value="7">7+ rating</option>
                     <option value="8">8+ rating</option>
@@ -336,8 +408,29 @@ function App() {
                   </select>
                 </label>
                 <label className="toolbar-select">
+                  <span className="visually-hidden">Status</span>
+                  <select value={selectedStatus} onChange={(event) => updateFilter(setSelectedStatus, event.target.value)}>
+                    <option value="">Any status</option>
+                    {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                  </select>
+                </label>
+                <label className="toolbar-select">
+                  <span className="visually-hidden">Network</span>
+                  <select value={selectedNetwork} onChange={(event) => updateFilter(setSelectedNetwork, event.target.value)}>
+                    <option value="">Any network</option>
+                    {networks.map((network) => <option key={network} value={network}>{network}</option>)}
+                  </select>
+                </label>
+                <label className="toolbar-select">
+                  <span className="visually-hidden">Premiere year</span>
+                  <select value={selectedYear} onChange={(event) => updateFilter(setSelectedYear, event.target.value)}>
+                    <option value="">Any year</option>
+                    {premiereYears.map((year) => <option key={year} value={year}>{year}</option>)}
+                  </select>
+                </label>
+                <label className="toolbar-select">
                   <span className="visually-hidden">Sort by</span>
-                  <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
+                  <select value={sortOrder} onChange={(event) => updateFilter(setSortOrder, event.target.value)}>
                     <option value="popular">Top rated</option>
                     <option value="title">Title A–Z</option>
                   </select>
@@ -346,11 +439,18 @@ function App() {
               </div>
               <div className="result-line">
                 <p className="results-count" aria-live="polite">
-                  Showing <strong>{filteredShows.length}</strong> {filteredShows.length === 1 ? 'show' : 'shows'}
+                  Showing <strong>{visibleShows.length}</strong> of <strong>{filteredShows.length}</strong> {filteredShows.length === 1 ? 'show' : 'shows'}
                   {selectedGenre ? <> in <strong>{selectedGenre}</strong></> : null}
                 </p>
               </div>
-              {renderShowGrid()}
+              {renderShowGrid(visibleShows)}
+              {hasMoreShows ? (
+                <div className="load-more-wrap">
+                  <button className="load-more-button" type="button" onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}>
+                    Load more shows <span>({filteredShows.length - visibleShows.length} remaining)</span>
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : null}
         </section>
@@ -369,7 +469,7 @@ function App() {
               </div>
               <div className="show-page-content">
                 <p className="eyebrow">SERIES DETAILS</p>
-                <h1 id="details-heading">{selectedShow.name}</h1>
+                <h1 ref={pageHeadingRef} id="details-heading" tabIndex="-1">{selectedShow.name}</h1>
                 <ul className="show-page-genres">
                   {selectedShow.genres.map((genre) => (
                     <li key={genre}><button type="button" onClick={() => selectGenre(genre)}>{genre}</button></li>
@@ -390,6 +490,10 @@ function App() {
                 >
                   {favoriteIds.includes(selectedShow.id) ? '♥ Saved to favorites' : '♡ Add to favorites'}
                 </button>
+                <button className="show-page-share" type="button" onClick={copyShowLink}>
+                  Share show
+                </button>
+                {shareMessage ? <p className="share-message" role="status">{shareMessage}</p> : null}
               </div>
             </article>
           </section>
@@ -412,6 +516,9 @@ function App() {
         <p>Made for finding the stories you’ll love.</p>
         <a href="https://www.tvmaze.com/" target="_blank" rel="noreferrer">Show data by TVmaze</a>
       </footer>
+      <p className="visually-hidden" aria-live="polite" aria-atomic="true">
+        {isShowPage && selectedShow ? `Show details for ${selectedShow.name}` : isFavoritesPage ? 'Favorites page' : 'Explore shows page'}
+      </p>
     </main>
   )
 }

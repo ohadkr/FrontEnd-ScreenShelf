@@ -11,7 +11,7 @@ Catalog View: A searchable, filterable, sortable poster grid displaying the full
 
 Show Details View: A dedicated in-app page displaying the selected show's poster, summary, genres, rating, status, premiere date, and network when available. Navigation stays within the same HTML document.
 
-Favorites View: A dedicated in-app page showing shows saved by the user and persisted in the browser.
+Favorites View: A dedicated in-app page showing shows saved by the user and persisted in the browser, with sorting and direct removal.
 
 4. Must-have features
 Fetch and display a list of TV shows from the TV Maze API.
@@ -20,7 +20,11 @@ Display each show's name and poster image in the main list.
 
 Search shows by title or genre, filter by genre or minimum rating, and sort by title or rating.
 
+Filter shows by status, network, and premiere year.
+
 Clear active filters without reloading the show list.
+
+Load the show catalog in batches to keep the initial browse view responsive.
 
 Browse all shows in a poster grid and navigate directly to shows by genre.
 
@@ -28,9 +32,15 @@ Add and remove favorites from the catalog or show details; preserve favorites be
 
 Navigate between the catalog, favorites, and show details without a full page reload; support browser back and forward.
 
-Allow users to click on any show in the list to select it.
+Share direct links to individual show detail pages.
 
-Display the selected show's summary, genres, and rating in the details panel.
+Preserve catalog search, filter, sort, and pagination state when returning from a show detail page.
+
+Offer a dark mode preference that is saved between visits, with accessible keyboard and screen-reader feedback.
+
+Allow users to open any show from the catalog or favorites view.
+
+Display the selected show's summary, genres, and rating on its show details page.
 
 Display the selected show's status, premiere date, and network when available.
 
@@ -39,15 +49,23 @@ Show a retry option when loading shows fails and a fallback when a poster is una
 5. Acceptance criteria
 When I open the app, I see a list of TV shows displaying their names and poster images.
 
-When I click on a TV show in the list, I see its detailed information load in the details panel.
+When I select a TV show, I see its detailed information on an in-app show page.
 
-When I view the details panel, I see the show's summary, genres, and rating clearly presented.
+When I view a show's details page, I see its summary, genres, and rating clearly presented.
 
 When show data or poster images are unavailable, the app presents a useful fallback instead of breaking.
 
 When I save a show as a favorite, it appears in a dedicated favorites view and remains saved after reloading.
 
 When I select a show or open favorites, the requested view replaces the current app view without reloading the HTML document.
+
+When I browse the catalog, results are paginated and can be filtered by status, network, and premiere year.
+
+When I open a show URL directly, its details load and the URL can be copied and shared.
+
+When I use keyboard or screen-reader navigation, page changes and result counts are announced and focus is managed sensibly.
+
+When I switch themes, the app remembers my preference on this device.
 
 6. Not now (ideas for later)
 Dark mode theme toggle.

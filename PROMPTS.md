@@ -35,3 +35,8 @@ Agent did: Replaced the details dialog with a full in-app show detail page using
 Follow-up: Make the genre cards smaller and verify that searching by genre works.
 Agent did: Compactly arranged genre cards with smaller symbols, labels, and counts; extended search matching to show names and genre names; added test coverage for both genre text search and genre-card filtering.
 I checked: Navigation, genre search and filtering, and other interactions passed 11 tests. Lint and production build passed; browser validation confirmed live show navigation between Browse, details, and Favorites without a document reload.
+
+## Pagination, advanced filters, share links, accessibility, and dark mode
+Prompt: Add pagination, filters for status/network/year, shareable show links, favorites management, preserve browsing state, accessibility polish, and a persistent dark mode toggle.
+Agent did: Added 30-item Load more batches; combined status, network, premiere-year and existing filters; added a copy/share URL action for direct hash-based show pages; preserved search/filter/sort state on return from details; added accessible page focus/live announcements; retained favorite sorting/removal; and added a localStorage-backed dark theme. Favorites and details remain client-side routes.
+I checked: All 16 automated tests pass, including combined filters, pagination, direct detail URLs, preserved browsing state, theme/favorite persistence, and show sharing. Lint and production build pass. Browser validation confirmed 30-item initial batches, network filtering, load-more behavior, and persistent dark mode on the live catalog.

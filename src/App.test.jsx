@@ -102,6 +102,45 @@ describe('show browser', () => {
     expect(cards[1].getAttribute('aria-label')).toBe('Show details for Alpha Show')
   })
 
+  it('filters by status, network, and premiere year together', async () => {
+    const user = await renderLoadedApp()
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'Running')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Network' }), 'Example Network')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Premiere year' }), '2020')
+
+    const cards = screen.getAllByRole('button', { name: /Show details for/ })
+    expect(cards).toHaveLength(1)
+    expect(cards[0].getAttribute('aria-label')).toBe('Show details for Zeta Show')
+  })
+
+  it('loads more results in batches and resets pagination when filters change', async () => {
+    fetchShows.mockResolvedValue([
+      ...testShows,
+      ...Array.from({ length: 62 }, (_, index) => ({
+        id: index + 4,
+        name: `Sample Show ${index + 4}`,
+        image: null,
+        summary: null,
+        genres: ['Drama'],
+        rating: { average: 7 },
+        status: 'Running',
+        premiered: '2020-01-01',
+        network: { name: 'Example Network' },
+      })),
+    ])
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('button', { name: 'Show details for Alpha Show' })
+    expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(30)
+
+    await user.click(screen.getByRole('button', { name: /Load more shows/ }))
+    expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(60)
+
+    await user.type(screen.getByRole('searchbox', { name: 'Search shows' }), 'zeta')
+    expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: /Load more shows/ })).toBeNull()
+  })
+
   it('updates the details panel with the selected show metadata', async () => {
     const user = await renderLoadedApp()
     await user.click(screen.getByRole('button', { name: 'Show details for Alpha Show' }))
@@ -158,17 +197,53 @@ describe('show browser', () => {
     const user = await renderLoadedApp()
     const documentElement = document.documentElement
 
+    await user.type(screen.getByRole('searchbox', { name: 'Search shows' }), 'zeta')
     await user.click(screen.getByRole('button', { name: 'Show details for Zeta Show' }))
     expect(window.location.hash).toBe('#/shows/1')
     expect(screen.getByRole('heading', { name: 'Zeta Show' })).not.toBeNull()
     expect(document.documentElement).toBe(documentElement)
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Zeta Show' }))
 
     await user.click(screen.getByRole('button', { name: 'Back to all shows' }))
     expect(window.location.hash).toBe('#/browse')
     expect(screen.getByRole('heading', { name: 'Explore by genre' })).not.toBeNull()
+    expect(screen.getByRole('searchbox', { name: 'Search shows' }).value).toBe('zeta')
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Find your next favorite' }))
 
     await user.click(screen.getByRole('button', { name: 'Favorites 0' }))
     expect(window.location.hash).toBe('#/favorites')
     expect(screen.getByRole('heading', { name: 'Your favorites' })).not.toBeNull()
+  })
+
+  it('opens a shareable show URL directly', async () => {
+    window.history.replaceState(null, '', '#/shows/2')
+    fetchShows.mockResolvedValue(testShows)
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Alpha Show' })).not.toBeNull()
+    expect(window.location.hash).toBe('#/shows/2')
+    expect(document.title).toBe('Alpha Show | ScreenShelf')
+  })
+
+  it('saves the dark theme preference between visits', async () => {
+    const user = await renderLoadedApp()
+    await user.click(screen.getByRole('button', { name: 'Switch to dark mode' }))
+    expect(document.querySelector('.shows-page').classList.contains('theme-dark')).toBe(true)
+    expect(localStorage.getItem('tv-show-theme')).toBe('dark')
+  })
+
+  it('offers a shareable URL on the show page', async () => {
+    const user = await renderLoadedApp()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    await user.click(screen.getByRole('button', { name: 'Show details for Zeta Show' }))
+    await user.click(screen.getByRole('button', { name: 'Share show' }))
+
+    expect(window.location.hash).toBe('#/shows/1')
+    expect(await screen.findByText('Show link copied.')).not.toBeNull()
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('#/shows/1'))
   })
 })

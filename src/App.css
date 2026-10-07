@@ -76,6 +76,31 @@
   font-size: 0.75rem;
 }
 
+.theme-toggle {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #e9e6ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 11px;
+  color: #625b6b;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: #bfb3ef;
+  color: #5638d4;
+}
+
+.theme-toggle span:first-child {
+  font-size: 1rem;
+}
+
 .hero {
   position: relative;
   display: grid;
@@ -263,6 +288,7 @@
 }
 
 .section-title-row h2,
+.catalog-title-row h1,
 .catalog-title-row h2 {
   margin: 0;
   color: #211e28;
@@ -371,6 +397,7 @@
 
 .catalog-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin: 24px 0 14px;
@@ -385,7 +412,7 @@
   display: flex;
   min-width: 150px;
   min-height: 42px;
-  flex: 1;
+  flex: 1 1 220px;
   align-items: center;
   gap: 10px;
   padding: 0 8px;
@@ -413,6 +440,7 @@
 }
 
 .toolbar-select select {
+  width: 100%;
   min-height: 42px;
   border: 1px solid #eae7ed;
   border-radius: 7px;
@@ -423,6 +451,11 @@
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.toolbar-select {
+  min-width: 125px;
+  flex: 1 1 135px;
 }
 
 .search-field:focus-within,
@@ -454,6 +487,45 @@
 
 .clear-button {
   flex: 0 0 auto;
+}
+
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 30px 0 6px;
+}
+
+.load-more-button {
+  min-height: 46px;
+  border: 1px solid #ded8f1;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 18px;
+  color: #5638d4;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.load-more-button:hover {
+  border-color: #a89ade;
+  background: #f5f2ff;
+}
+
+.load-more-button span {
+  margin-left: 4px;
+  color: #89848e;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.load-more-button:focus-visible,
+.theme-toggle:focus-visible,
+.show-page-share:focus-visible {
+  outline: 3px solid rgb(105 73 232 / 28%);
+  outline-offset: 2px;
 }
 
 .result-line {
@@ -843,9 +915,35 @@
   color: #d3456a;
 }
 
+.show-page-share {
+  min-height: 45px;
+  margin: 24px 0 0 8px;
+  border: 1px solid #e3e0e7;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 15px;
+  color: #585461;
+  font: inherit;
+  font-size: 0.87rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.show-page-share:hover {
+  border-color: #bfb3ef;
+  color: #5638d4;
+}
+
+.share-message {
+  margin-top: 9px;
+  color: #706a76;
+  font-size: 0.82rem;
+}
+
 .show-page-genres button:focus-visible,
 .show-page-favorite:focus-visible,
-.back-button:focus-visible {
+.back-button:focus-visible,
+.show-page-share:focus-visible {
   outline: 3px solid rgb(105 73 232 / 28%);
   outline-offset: 2px;
 }
@@ -934,6 +1032,179 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   clip-path: inset(50%);
+}
+
+body:has(.theme-dark) {
+  background: #17151e;
+}
+
+.shows-page.theme-dark {
+  min-height: 100vh;
+  background: #17151e;
+  color: #eeeaf4;
+  box-shadow: 0 0 0 100vmax #17151e;
+  clip-path: inset(0 -100vmax);
+}
+
+.theme-dark .site-header,
+.theme-dark .site-footer {
+  border-color: #34303d;
+}
+
+.theme-dark .brand,
+.theme-dark .section-title-row h2,
+.theme-dark .catalog-title-row h1,
+.theme-dark .catalog-title-row h2,
+.theme-dark .tile-name,
+.theme-dark .empty-state h3,
+.theme-dark .show-page-content h1,
+.theme-dark .show-page-content > h2 {
+  color: #f1edf6;
+}
+
+.theme-dark .view-tab,
+.theme-dark .catalog-count,
+.theme-dark .results-count,
+.theme-dark .tile-genres,
+.theme-dark .site-footer,
+.theme-dark .site-footer > a:last-child {
+  color: #b4adbf;
+}
+
+.theme-dark .view-tab:hover,
+.theme-dark .view-tab.is-active,
+.theme-dark .genre-card {
+  color: #eeeaf4;
+}
+
+.theme-dark .view-tab.is-active,
+.theme-dark .favorite-count {
+  background: #352c50;
+}
+
+.theme-dark .theme-toggle,
+.theme-dark .catalog-toolbar,
+.theme-dark .toolbar-select select,
+.theme-dark .load-more-button,
+.theme-dark .show-page-card,
+.theme-dark .empty-state,
+.theme-dark .error-panel,
+.theme-dark .show-page-share {
+  border-color: #3a3545;
+  background: #211e29;
+  color: #eeeaf4;
+}
+
+.theme-dark .search-field input {
+  color: #f1edf6;
+}
+
+.theme-dark .search-field input::placeholder,
+.theme-dark .load-more-button span {
+  color: #9d96a8;
+}
+
+.theme-dark .genre-card-0 {
+  border-color: #433960;
+  background: #282239;
+}
+
+.theme-dark .genre-card-1 {
+  border-color: #344b43;
+  background: #202e29;
+}
+
+.theme-dark .genre-card-2 {
+  border-color: #584534;
+  background: #33291f;
+}
+
+.theme-dark .genre-card-3 {
+  border-color: #573743;
+  background: #33212a;
+}
+
+.theme-dark .genre-card-4 {
+  border-color: #35425d;
+  background: #222a3a;
+}
+
+.theme-dark .genre-card-5 {
+  border-color: #4b3a55;
+  background: #2d2334;
+}
+
+.theme-dark .genre-card-name {
+  color: #f1edf6;
+}
+
+.theme-dark .genre-card-count,
+.theme-dark .show-page-summary,
+.theme-dark .empty-state p {
+  color: #b0a9b9;
+}
+
+.theme-dark .genre-card-symbol {
+  background: rgb(255 255 255 / 10%);
+  color: #c1b2ff;
+}
+
+.theme-dark .show-metadata div {
+  background: #2a2632;
+}
+
+.theme-dark .show-metadata dt {
+  color: #a69eaf;
+}
+
+.theme-dark .show-metadata dd {
+  color: #e4dfeb;
+}
+
+.theme-dark .back-button {
+  color: #c1b2ff;
+}
+
+.theme-dark .back-button:hover {
+  background: #2a2440;
+}
+
+.theme-dark .show-page-genres button {
+  border-color: #473c67;
+  background: #2a2440;
+  color: #d0c5ff;
+}
+
+.theme-dark .show-page-share {
+  color: #dfd9ea;
+}
+
+.theme-dark .show-page-favorite {
+  border-color: #473c67;
+  background: #2a2440;
+  color: #d0c5ff;
+}
+
+.theme-dark .show-page-favorite.is-favorite {
+  border-color: #603c4a;
+  background: #38232c;
+  color: #ff9db6;
+}
+
+.theme-dark .show-page-share:hover,
+.theme-dark .load-more-button:hover {
+  background: #2d2838;
+}
+
+.theme-dark .storage-notice,
+.theme-dark .status-message {
+  background: #2a2440;
+  color: #d0c5ff;
+}
+
+.theme-dark .empty-icon {
+  background: #2a2440;
+  color: #c1b2ff;
 }
 
 @media (max-width: 1100px) {

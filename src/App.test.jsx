@@ -2,9 +2,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { fetchShows } from './services/tvmaze'
+import { fetchShowEpisodes, fetchShows } from './services/tvmaze'
 
 vi.mock('./services/tvmaze', () => ({
+  fetchShowEpisodes: vi.fn(),
   fetchShows: vi.fn(),
 }))
 
@@ -55,6 +56,7 @@ async function renderLoadedApp() {
 describe('show browser', () => {
   beforeEach(() => {
     fetchShows.mockReset()
+    fetchShowEpisodes.mockReset().mockResolvedValue([])
     localStorage.clear()
     window.history.replaceState(null, '', '#/browse')
   })
@@ -223,6 +225,7 @@ describe('show browser', () => {
     expect(await screen.findByRole('heading', { name: 'Alpha Show' })).not.toBeNull()
     expect(window.location.hash).toBe('#/shows/2')
     expect(document.title).toBe('Alpha Show | ScreenShelf')
+    await waitFor(() => expect(localStorage.getItem('tv-show-recent')).toBe('[2]'))
   })
 
   it('saves the dark theme preference between visits', async () => {
@@ -245,5 +248,91 @@ describe('show browser', () => {
     expect(window.location.hash).toBe('#/shows/1')
     expect(await screen.findByText('Show link copied.')).not.toBeNull()
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('#/shows/1'))
+  })
+
+  it('lets me surprise myself with a show from the current results', async () => {
+    const user = await renderLoadedApp()
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0)
+    await user.click(screen.getByRole('button', { name: 'Surprise me' }))
+
+    expect(await screen.findByRole('heading', { name: 'Zeta Show' })).not.toBeNull()
+    expect(window.location.hash).toBe('#/shows/1')
+    random.mockRestore()
+  })
+
+  it('saves watchlist statuses and filters the catalog by status', async () => {
+    const user = await renderLoadedApp()
+    await user.click(screen.getByRole('button', { name: 'Show details for Zeta Show' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Watch status for Zeta Show' }), 'watching')
+
+    expect(JSON.parse(localStorage.getItem('tv-show-watch-statuses'))).toEqual({ 1: 'watching' })
+    await user.click(screen.getByRole('button', { name: 'Back to all shows' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Watchlist status' }), 'watching')
+
+    expect(screen.getAllByRole('button', { name: /Show details for/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Show details for Zeta Show' })).not.toBeNull()
+  })
+
+  it('compares up to three shows side by side', async () => {
+    fetchShows.mockResolvedValue([
+      ...testShows,
+      { ...testShows[0], id: 4, name: 'Fourth Show' },
+    ])
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('button', { name: 'Show details for Fourth Show' })
+
+    for (const name of ['Zeta Show', 'Alpha Show', 'Unrated Drama']) {
+      const tile = screen.getByRole('button', { name: `Show details for ${name}` }).closest('li')
+      await user.click(within(tile).getByRole('button', { name: 'Compare' }))
+    }
+    const fourthTile = screen.getByRole('button', { name: 'Show details for Fourth Show' }).closest('li')
+    await user.click(within(fourthTile).getByRole('button', { name: 'Compare' }))
+
+    expect(screen.getByRole('heading', { name: 'Compare shows (3/3)' })).not.toBeNull()
+    expect(screen.getByText('Compare up to 3 shows at a time.')).not.toBeNull()
+    expect(screen.getByRole('table', { name: 'Show ratings, genres, status, and premiere dates' })).not.toBeNull()
+  })
+
+  it('shows episode counts and recommendations with a provider search link', async () => {
+    fetchShowEpisodes.mockResolvedValue([
+      { id: 101, season: 1, number: 1, name: 'Pilot', airdate: '2020-01-01' },
+      { id: 102, season: 2, number: 1, name: 'New Start', airdate: '2021-01-01' },
+    ])
+    const user = await renderLoadedApp()
+    await user.click(screen.getByRole('button', { name: 'Show details for Zeta Show' }))
+
+    expect(await screen.findByText('2 seasons · 2 episodes')).not.toBeNull()
+    expect(screen.getByText('Pilot')).not.toBeNull()
+    expect(screen.getByRole('heading', { name: 'Similar shows' })).not.toBeNull()
+    expect(screen.getByRole('link', { name: 'Search where to watch' }).getAttribute('href')).toContain('where%20to%20watch%20Zeta%20Show')
+  })
+
+  it('records recently viewed shows and provides collection import and export', async () => {
+    const user = await renderLoadedApp()
+    await user.click(screen.getByRole('button', { name: 'Show details for Alpha Show' }))
+    await user.click(screen.getByRole('button', { name: 'Back to all shows' }))
+    expect(screen.getByRole('heading', { name: 'Recently viewed' })).not.toBeNull()
+    expect(localStorage.getItem('tv-show-recent')).toBe('[2]')
+
+    await user.click(screen.getByRole('button', { name: /Favorites/ }))
+    const createObjectURL = vi.fn().mockReturnValue('blob:screenshelf')
+    const revokeObjectURL = vi.fn()
+    const clickDownload = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    await user.click(screen.getByRole('button', { name: 'Export collection' }))
+    expect(createObjectURL).toHaveBeenCalledOnce()
+    expect(clickDownload).toHaveBeenCalledOnce()
+    clickDownload.mockRestore()
+    expect(await screen.findByText('Your collection was exported.')).not.toBeNull()
+
+    const importFile = new File([
+      JSON.stringify({ version: 1, favoriteIds: [1], watchStatuses: { 1: 'planned' } }),
+    ], 'screenshelf.json', { type: 'application/json' })
+    await user.upload(screen.getByLabelText('Import ScreenShelf collection file'), importFile)
+    expect(await screen.findByText('Your collection was imported.')).not.toBeNull()
+    expect(localStorage.getItem('tv-show-favorites')).toBe('[1]')
+    expect(localStorage.getItem('tv-show-watch-statuses')).toBe('{"1":"planned"}')
   })
 })

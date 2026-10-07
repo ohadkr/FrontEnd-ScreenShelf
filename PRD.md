@@ -11,7 +11,7 @@ Catalog View: A searchable, filterable, sortable poster grid displaying the full
 
 Show Details View: A dedicated in-app page displaying the selected show's poster, summary, genres, rating, status, premiere date, and network when available. Navigation stays within the same HTML document.
 
-Favorites View: A dedicated in-app page showing shows saved by the user and persisted in the browser, with sorting and direct removal.
+Favorites View: A dedicated in-app page showing saved favorites and watchlist statuses, with collection import/export and recently viewed shows.
 
 4. Must-have features
 Fetch and display a list of TV shows from the TV Maze API.
@@ -29,6 +29,18 @@ Load the show catalog in batches to keep the initial browse view responsive.
 Browse all shows in a poster grid and navigate directly to shows by genre.
 
 Add and remove favorites from the catalog or show details; preserve favorites between visits.
+
+Track shows as "Plan to watch", "Watching", or "Finished", and filter the catalog by watchlist status.
+
+Import and export favorites and watchlist statuses as a portable JSON collection.
+
+Show recently viewed series on the landing page and provide a random pick from current search results.
+
+Compare up to three shows by rating, genres, status, and premiere date.
+
+Recommend similar shows using shared genres and show season/episode counts and an episode guide on details pages.
+
+Provide an external search link for streaming availability without claiming provider availability is verified.
 
 Navigate between the catalog, favorites, and show details without a full page reload; support browser back and forward.
 
@@ -67,11 +79,22 @@ When I use keyboard or screen-reader navigation, page changes and result counts 
 
 When I switch themes, the app remembers my preference on this device.
 
+When I set a watchlist status, it persists locally and can be filtered from the catalog.
+
+When I export my collection, I can import the JSON file to restore favorites and watchlist statuses.
+
+When I open a show, it appears in recently viewed and related shows are suggested by shared genres.
+
+When I compare shows, up to three titles are shown together with their key metadata.
+
+When episode data is available, the show page shows season and episode counts; streaming availability links to an external search rather than asserting current provider coverage.
+
 6. Not now (ideas for later)
-Dark mode theme toggle.
+Account sync and cross-device collections; verified, region-specific streaming availability.
 
 7. Data: the API URL and the fields we use
 API URL: [https://api.tvmaze.com/shows](https://api.tvmaze.com/shows)
+Episode URL: `https://api.tvmaze.com/shows/{id}/episodes`
 
 Fields used:
 

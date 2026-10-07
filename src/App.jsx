@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
-import { fetchShows } from './services/tvmaze'
+import { fetchShowEpisodes, fetchShows } from './services/tvmaze'
 
 const PAGE_SIZE = 30
+const WATCH_STATUSES = ['watching', 'planned', 'finished']
+const MAX_COMPARE_SHOWS = 3
+
+function chooseRandomShow(shows) {
+  return shows[Math.floor(Math.random() * shows.length)]
+}
 
 function toPlainText(html) {
   const element = document.createElement('div')
@@ -38,6 +44,37 @@ function readTheme() {
     return localStorage.getItem('tv-show-theme') === 'dark'
   } catch {
     return false
+  }
+}
+
+function readWatchStatuses() {
+  try {
+    const statuses = JSON.parse(localStorage.getItem('tv-show-watch-statuses') ?? '{}')
+    if (!statuses || typeof statuses !== 'object' || Array.isArray(statuses)) return {}
+    return Object.fromEntries(
+      Object.entries(statuses).filter(([id, status]) => /^\d+$/.test(id) && WATCH_STATUSES.includes(status)),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function readRecentShows() {
+  try {
+    const ids = JSON.parse(localStorage.getItem('tv-show-recent') ?? '[]')
+    return Array.isArray(ids) ? ids.filter(Number.isInteger).slice(0, 8) : []
+  } catch {
+    return []
+  }
+}
+
+function persistRecentlyViewed(showId) {
+  const nextRecentIds = [showId, ...readRecentShows().filter((id) => id !== showId)].slice(0, 8)
+  try {
+    localStorage.setItem('tv-show-recent', JSON.stringify(nextRecentIds))
+    return ''
+  } catch {
+    return 'Recently viewed shows could not be saved on this device.'
   }
 }
 
@@ -77,18 +114,26 @@ function App() {
   const [sortOrder, setSortOrder] = useState('popular')
   const [route, setRoute] = useState(readRoute)
   const [favoriteIds, setFavoriteIds] = useState(readFavorites)
+  const [watchStatuses, setWatchStatuses] = useState(readWatchStatuses)
+  const [watchStatusFilter, setWatchStatusFilter] = useState('')
+  const [compareIds, setCompareIds] = useState([])
   const [isDarkTheme, setIsDarkTheme] = useState(readTheme)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [storageError, setStorageError] = useState('')
   const [shareMessage, setShareMessage] = useState('')
+  const [collectionMessage, setCollectionMessage] = useState('')
+  const [episodeGuide, setEpisodeGuide] = useState({ showId: null, retryCount: -1, episodes: [], error: '' })
+  const [episodeRetryCount, setEpisodeRetryCount] = useState(0)
   const [retryCount, setRetryCount] = useState(0)
 
+  const importFileRef = useRef(null)
   const isBrowsePage = route.page === 'browse'
   const isFavoritesPage = route.page === 'favorites'
   const isShowPage = route.page === 'show'
   const selectedShow = shows.find((show) => show.id === route.showId) ?? null
+  const selectedShowId = selectedShow?.id
   const previousPageRef = useRef(route.page)
   const pageHeadingRef = useRef(null)
   const genres = [...new Set(shows.flatMap((show) => show.genres))].sort((a, b) => a.localeCompare(b))
@@ -111,6 +156,7 @@ function App() {
     && (!selectedStatus || show.status === selectedStatus)
     && (!selectedNetwork || show.network === selectedNetwork)
     && (!selectedYear || show.premiered?.startsWith(`${selectedYear}-`))
+    && (!watchStatusFilter || watchStatuses[show.id] === watchStatusFilter)
     && (!isFavoritesPage || favoriteIds.includes(show.id))
   ))
 
@@ -123,7 +169,31 @@ function App() {
 
   const visibleShows = filteredShows.slice(0, visibleCount)
   const hasMoreShows = visibleShows.length < filteredShows.length
-  const hasActiveFilters = Boolean(searchQuery || selectedGenre || minimumRating || selectedStatus || selectedNetwork || selectedYear)
+  const hasActiveFilters = Boolean(searchQuery || selectedGenre || minimumRating || selectedStatus || selectedNetwork || selectedYear || watchStatusFilter)
+  const recentShows = readRecentShows().map((id) => shows.find((show) => show.id === id)).filter(Boolean)
+  const comparedShows = compareIds.map((id) => shows.find((show) => show.id === id)).filter(Boolean)
+  const similarShows = selectedShow
+    ? shows
+      .filter((show) => show.id !== selectedShow.id)
+      .map((show) => ({ show, sharedGenres: show.genres.filter((genre) => selectedShow.genres.includes(genre)).length }))
+      .filter(({ sharedGenres }) => sharedGenres > 0)
+      .sort((first, second) => second.sharedGenres - first.sharedGenres
+        || (second.show.rating ?? -1) - (first.show.rating ?? -1)
+        || first.show.name.localeCompare(second.show.name))
+      .slice(0, 4)
+      .map(({ show }) => show)
+    : []
+  const isEpisodeGuideLoading = Boolean(
+    selectedShow
+    && (episodeGuide.showId !== selectedShow.id || episodeGuide.retryCount !== episodeRetryCount),
+  )
+  const episodeGuideError = !isEpisodeGuideLoading && episodeGuide.showId === selectedShow?.id
+    ? episodeGuide.error
+    : ''
+  const currentEpisodes = episodeGuide.showId === selectedShow?.id
+    && episodeGuide.retryCount === episodeRetryCount
+    ? episodeGuide.episodes
+    : []
 
   useEffect(() => {
     const controller = new AbortController()
@@ -131,7 +201,13 @@ function App() {
     async function loadShows() {
       try {
         const apiShows = await fetchShows({ signal: controller.signal })
-        setShows(apiShows.map(mapShow))
+        const mappedShows = apiShows.map(mapShow)
+        setShows(mappedShows)
+        const currentRoute = readRoute()
+        if (currentRoute.page === 'show' && mappedShows.some((show) => show.id === currentRoute.showId)) {
+          const recentError = persistRecentlyViewed(currentRoute.showId)
+          if (recentError) setStorageError(recentError)
+        }
       } catch (requestError) {
         if (!controller.signal.aborted) {
           setError(requestError instanceof Error ? requestError.message : 'Unable to load shows.')
@@ -155,6 +231,30 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!isShowPage || !selectedShowId) return undefined
+    const controller = new AbortController()
+
+    async function loadEpisodes() {
+      try {
+        const episodes = await fetchShowEpisodes(selectedShowId, { signal: controller.signal })
+        setEpisodeGuide({ showId: selectedShowId, retryCount: episodeRetryCount, episodes, error: '' })
+      } catch (requestError) {
+        if (!controller.signal.aborted) {
+          setEpisodeGuide({
+            showId: selectedShowId,
+            retryCount: episodeRetryCount,
+            episodes: [],
+            error: requestError instanceof Error ? requestError.message : 'Unable to load the episode guide.',
+          })
+        }
+      }
+    }
+
+    loadEpisodes()
+    return () => controller.abort()
+  }, [episodeRetryCount, isShowPage, selectedShowId])
+
+  useEffect(() => {
     const pageName = isShowPage ? selectedShow?.name ?? 'Show details' : isFavoritesPage ? 'Favorites' : 'Explore'
     document.title = `${pageName} | ScreenShelf`
     if (previousPageRef.current !== route.page || (isShowPage && selectedShow)) {
@@ -173,6 +273,8 @@ function App() {
   }
 
   function openShow(showId) {
+    const recentError = persistRecentlyViewed(showId)
+    if (recentError) setStorageError(recentError)
     navigate(`/shows/${showId}${isFavoritesPage ? '?from=favorites' : ''}`)
   }
 
@@ -183,8 +285,40 @@ function App() {
     setSelectedStatus('')
     setSelectedNetwork('')
     setSelectedYear('')
+    setWatchStatusFilter('')
     setVisibleCount(PAGE_SIZE)
     navigate('/favorites')
+  }
+
+  function setShowWatchStatus(showId, status) {
+    const nextStatuses = { ...watchStatuses }
+    if (status) nextStatuses[showId] = status
+    else delete nextStatuses[showId]
+    setWatchStatuses(nextStatuses)
+
+    try {
+      localStorage.setItem('tv-show-watch-statuses', JSON.stringify(nextStatuses))
+      setStorageError('')
+    } catch {
+      setStorageError('Watchlist statuses could not be saved on this device.')
+    }
+  }
+
+  function toggleCompare(showId) {
+    if (compareIds.includes(showId)) {
+      setCompareIds(compareIds.filter((id) => id !== showId))
+      setCollectionMessage('')
+    } else if (compareIds.length >= MAX_COMPARE_SHOWS) {
+      setCollectionMessage(`Compare up to ${MAX_COMPARE_SHOWS} shows at a time.`)
+    } else {
+      setCompareIds([...compareIds, showId])
+      setCollectionMessage('')
+    }
+  }
+
+  function surpriseMe() {
+    if (!filteredShows.length) return
+    openShow(chooseRandomShow(filteredShows).id)
   }
 
   function toggleFavorite(showId) {
@@ -208,8 +342,58 @@ function App() {
     setSelectedStatus('')
     setSelectedNetwork('')
     setSelectedYear('')
+    setWatchStatusFilter('')
     setSortOrder('popular')
     setVisibleCount(PAGE_SIZE)
+  }
+
+  function exportCollection() {
+    try {
+      const collection = JSON.stringify({ version: 1, favoriteIds, watchStatuses }, null, 2)
+      const fileUrl = URL.createObjectURL(new Blob([collection], { type: 'application/json' }))
+      const downloadLink = document.createElement('a')
+      downloadLink.href = fileUrl
+      downloadLink.download = 'screenshelf-collection.json'
+      downloadLink.click()
+      URL.revokeObjectURL(fileUrl)
+      setCollectionMessage('Your collection was exported.')
+    } catch {
+      setCollectionMessage('The collection could not be exported in this browser.')
+    }
+  }
+
+  async function importCollection(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      const imported = JSON.parse(await file.text())
+      const validStatuses = imported?.watchStatuses
+      if (
+        imported?.version !== 1
+        || !Array.isArray(imported.favoriteIds)
+        || !imported.favoriteIds.every(Number.isInteger)
+        || !validStatuses
+        || typeof validStatuses !== 'object'
+        || Array.isArray(validStatuses)
+        || !Object.entries(validStatuses).every(([id, status]) => /^\d+$/.test(id) && WATCH_STATUSES.includes(status))
+      ) {
+        throw new Error('The file is not a valid ScreenShelf collection.')
+      }
+
+      const importedStatuses = Object.fromEntries(
+        Object.entries(validStatuses).filter(([id]) => Number.isInteger(Number(id))),
+      )
+      localStorage.setItem('tv-show-favorites', JSON.stringify(imported.favoriteIds))
+      localStorage.setItem('tv-show-watch-statuses', JSON.stringify(importedStatuses))
+      setFavoriteIds(imported.favoriteIds)
+      setWatchStatuses(importedStatuses)
+      setCollectionMessage('Your collection was imported.')
+      setStorageError('')
+    } catch (importError) {
+      setCollectionMessage(importError instanceof Error ? importError.message : 'The collection could not be imported.')
+    }
   }
 
   function toggleTheme() {
@@ -273,6 +457,14 @@ function App() {
                 onClick={() => toggleFavorite(show.id)}
               >
                 <span aria-hidden="true">{isFavorite ? '♥' : '♡'}</span>
+              </button>
+              <button
+                className={`compare-toggle ${compareIds.includes(show.id) ? 'is-selected' : ''}`}
+                type="button"
+                aria-pressed={compareIds.includes(show.id)}
+                onClick={() => toggleCompare(show.id)}
+              >
+                {compareIds.includes(show.id) ? 'Selected to compare' : 'Compare'}
               </button>
             </li>
           )
@@ -341,6 +533,25 @@ function App() {
             </div>
           </section>
 
+          {recentShows.length ? (
+            <section className="recent-section" aria-labelledby="recent-heading">
+              <div className="section-title-row">
+                <div>
+                  <p className="eyebrow">PICK UP WHERE YOU LEFT OFF</p>
+                  <h2 id="recent-heading">Recently viewed</h2>
+                </div>
+              </div>
+              <div className="recent-show-list">
+                {recentShows.map((show) => (
+                  <button className="recent-show" key={show.id} type="button" onClick={() => openShow(show.id)}>
+                    <ShowPoster image={show.image} name={show.name} className="recent-poster" />
+                    <span>{show.name}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section className="genre-section" aria-labelledby="genre-heading">
             <div className="section-title-row">
               <div>
@@ -372,6 +583,7 @@ function App() {
       ) : null}
 
       {storageError ? <p className="storage-notice" role="status">{storageError}</p> : null}
+      {collectionMessage ? <p className="collection-notice" role="status">{collectionMessage}</p> : null}
 
       {!isShowPage ? (
         <section className="catalog-section" id="catalog" aria-labelledby="catalog-heading">
@@ -380,7 +592,23 @@ function App() {
               <p className="eyebrow">{isFavoritesPage ? 'YOUR PERSONAL COLLECTION' : 'THE COLLECTION'}</p>
               <h1 ref={isBrowsePage || isFavoritesPage ? pageHeadingRef : null} id="catalog-heading" tabIndex="-1">{isFavoritesPage ? 'Your favorites' : 'Find your next favorite'}</h1>
             </div>
-            <p className="catalog-count">{isFavoritesPage ? favoriteIds.length : shows.length} titles</p>
+            <div className="catalog-actions">
+              <p className="catalog-count">{isFavoritesPage ? favoriteIds.length : shows.length} titles</p>
+              {isFavoritesPage ? (
+                <>
+                  <button className="text-button" type="button" onClick={exportCollection}>Export collection</button>
+                  <button className="text-button" type="button" onClick={() => importFileRef.current?.click()}>Import collection</button>
+                  <input
+                    ref={importFileRef}
+                    className="visually-hidden"
+                    type="file"
+                    accept="application/json,.json"
+                    aria-label="Import ScreenShelf collection file"
+                    onChange={importCollection}
+                  />
+                </>
+              ) : null}
+            </div>
           </div>
 
           {isLoading ? <p className="status-message" role="status">Gathering your shows…</p> : null}
@@ -429,12 +657,24 @@ function App() {
                   </select>
                 </label>
                 <label className="toolbar-select">
+                  <span className="visually-hidden">Watchlist status</span>
+                  <select value={watchStatusFilter} onChange={(event) => updateFilter(setWatchStatusFilter, event.target.value)}>
+                    <option value="">Any watchlist status</option>
+                    <option value="watching">Watching</option>
+                    <option value="planned">Plan to watch</option>
+                    <option value="finished">Finished</option>
+                  </select>
+                </label>
+                <label className="toolbar-select">
                   <span className="visually-hidden">Sort by</span>
                   <select value={sortOrder} onChange={(event) => updateFilter(setSortOrder, event.target.value)}>
                     <option value="popular">Top rated</option>
                     <option value="title">Title A–Z</option>
                   </select>
                 </label>
+                <button className="surprise-button" type="button" onClick={surpriseMe} disabled={!filteredShows.length}>
+                  Surprise me
+                </button>
                 {hasActiveFilters ? <button className="text-button clear-button" type="button" onClick={clearFilters}>Clear filters</button> : null}
               </div>
               <div className="result-line">
@@ -450,6 +690,39 @@ function App() {
                     Load more shows <span>({filteredShows.length - visibleShows.length} remaining)</span>
                   </button>
                 </div>
+              ) : null}
+              {compareIds.length ? (
+                <section className="compare-section" aria-labelledby="compare-heading">
+                  <div className="section-title-row">
+                    <div>
+                      <p className="eyebrow">SIDE BY SIDE</p>
+                      <h2 id="compare-heading">Compare shows ({comparedShows.length}/{MAX_COMPARE_SHOWS})</h2>
+                    </div>
+                    <button className="text-button" type="button" onClick={() => setCompareIds([])}>Clear comparison</button>
+                  </div>
+                  <div className="comparison-table-wrap">
+                    <table className="comparison-table">
+                      <caption className="visually-hidden">Show ratings, genres, status, and premiere dates</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Show</th>
+                          {comparedShows.map((show) => (
+                            <th scope="col" key={show.id}>
+                              <button className="comparison-show-link" type="button" onClick={() => openShow(show.id)}>{show.name}</button>
+                              <button className="comparison-remove" type="button" aria-label={`Remove ${show.name} from comparison`} onClick={() => toggleCompare(show.id)}>Remove</button>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><th scope="row">Rating</th>{comparedShows.map((show) => <td key={show.id}>{show.rating ?? 'Not rated'}</td>)}</tr>
+                        <tr><th scope="row">Genres</th>{comparedShows.map((show) => <td key={show.id}>{show.genres.join(', ') || 'Unknown'}</td>)}</tr>
+                        <tr><th scope="row">Status</th>{comparedShows.map((show) => <td key={show.id}>{show.status ?? 'Unknown'}</td>)}</tr>
+                        <tr><th scope="row">Premiered</th>{comparedShows.map((show) => <td key={show.id}>{show.premiered ?? 'Unknown'}</td>)}</tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               ) : null}
             </>
           ) : null}
@@ -482,6 +755,27 @@ function App() {
                   <div><dt>Premiered</dt><dd>{selectedShow.premiered ?? 'Unknown'}</dd></div>
                   <div><dt>Network</dt><dd>{selectedShow.network ?? 'Unknown'}</dd></div>
                 </dl>
+                <label className="watch-status-field">
+                  <span>My watchlist status</span>
+                  <select
+                    aria-label={`Watch status for ${selectedShow.name}`}
+                    value={watchStatuses[selectedShow.id] ?? ''}
+                    onChange={(event) => setShowWatchStatus(selectedShow.id, event.target.value)}
+                  >
+                    <option value="">Not on my watchlist</option>
+                    <option value="planned">Plan to watch</option>
+                    <option value="watching">Watching</option>
+                    <option value="finished">Finished</option>
+                  </select>
+                </label>
+                <a
+                  className="streaming-search"
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`where to watch ${selectedShow.name} TV show`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Search where to watch <span aria-hidden="true">↗</span>
+                </a>
                 <button
                   className={`show-page-favorite ${favoriteIds.includes(selectedShow.id) ? 'is-favorite' : ''}`}
                   type="button"
@@ -496,6 +790,53 @@ function App() {
                 {shareMessage ? <p className="share-message" role="status">{shareMessage}</p> : null}
               </div>
             </article>
+            <section className="episode-section" aria-labelledby="episode-heading">
+              <div className="section-title-row">
+                <div>
+                  <p className="eyebrow">SEASONS & EPISODES</p>
+                  <h2 id="episode-heading">Episode guide</h2>
+                </div>
+                {!isEpisodeGuideLoading && !episodeGuideError && currentEpisodes.length ? (
+                  <p className="episode-count">
+                    {new Set(currentEpisodes.map((episode) => episode.season)).size} seasons · {currentEpisodes.length} episodes
+                  </p>
+                ) : null}
+              </div>
+              {isEpisodeGuideLoading ? <p className="status-message" role="status">Loading episode guide…</p> : null}
+              {episodeGuideError ? (
+                <div className="error-panel" role="alert">
+                  <p>{episodeGuideError}</p>
+                  <button className="text-button" type="button" onClick={() => setEpisodeRetryCount((count) => count + 1)}>Retry episode guide</button>
+                </div>
+              ) : null}
+              {!isEpisodeGuideLoading && !episodeGuideError && currentEpisodes.length ? (
+                <ol className="episode-list">
+                  {currentEpisodes.slice(0, 6).map((episode) => (
+                    <li key={episode.id}>
+                      <span className="episode-number">
+                        S{String(episode.season ?? '?').padStart(2, '0')} · E{String(episode.number ?? 'Special').padStart(2, '0')}
+                      </span>
+                      <span className="episode-name">{episode.name}</span>
+                      <span className="episode-airdate">{episode.airdate || 'Date not announced'}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+              {!isEpisodeGuideLoading && !episodeGuideError && !currentEpisodes.length ? (
+                <p className="show-page-summary">No episode information is available for this show.</p>
+              ) : null}
+            </section>
+            {similarShows.length ? (
+              <section className="similar-section" aria-labelledby="similar-heading">
+                <div className="section-title-row">
+                  <div>
+                    <p className="eyebrow">MORE LIKE THIS</p>
+                    <h2 id="similar-heading">Similar shows</h2>
+                  </div>
+                </div>
+                {renderShowGrid(similarShows)}
+              </section>
+            ) : null}
           </section>
         ) : isLoading ? (
           <p className="status-message" role="status">Loading show details…</p>
